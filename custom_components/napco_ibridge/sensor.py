@@ -12,7 +12,6 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory
 
 from .const import ARM_STATES, PARALLEL_UPDATES as _PARALLEL_UPDATES
-from .coordinator import NapcoIbridgeDataUpdateCoordinator
 from .entity import NapcoIbridgeEntity
 
 if TYPE_CHECKING:
