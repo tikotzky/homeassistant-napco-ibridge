@@ -1,0 +1,13 @@
+{
+  "domain": "napco_ibridge",
+  "name": "Napco iBridge",
+  "codeowners": [
+    "@mordytk"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/mordytk/homeassistant-napco-ibridge",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/mordytk/homeassistant-napco-ibridge/issues",
+  "version": "0.1.0"
+}
