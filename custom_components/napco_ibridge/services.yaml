@@ -15,53 +15,17 @@ send_keys:
     keys:
       name: Keys
       description: >-
-        Ordered list of keypad buttons. Choose from the named buttons in the UI,
-        or pass integer codes in YAML automations.
+        Ordered list of keypad buttons. Each chip is one keystroke and the same
+        button may appear multiple times (e.g. for a code like 1111).
+        Valid names: Button0–Button9, ButtonStar, ButtonBreak, ButtonStartBreak,
+        ButtonShift0–ButtonShift9, ButtonOnOffEnter, ButtonOnOffEnter2,
+        ButtonReset, ButtonNext, ButtonYes, ButtonInteriorStay,
+        ButtonInteriorStayLong, ButtonPrev, ButtonNo, ButtonInstantAway,
+        ButtonInstantAwayLong, ButtonBypass, ButtonF, ButtonA, ButtonP,
+        ButtonFunctionMenu, ButtonZoneDirectory, ButtonLongPrefix.
+        You may also pass raw integer button codes.
       required: true
-      example: '["Button1", "Button2", "Button3", "Button4", "ButtonOnOffEnter"]'
+      example: '["Button1", "Button1", "Button1", "Button1", "ButtonOnOffEnter"]'
       selector:
-        select:
+        text:
           multiple: true
-          custom_value: true
-          options:
-            - "Button0"
-            - "Button1"
-            - "Button2"
-            - "Button3"
-            - "Button4"
-            - "Button5"
-            - "Button6"
-            - "Button7"
-            - "Button8"
-            - "Button9"
-            - "ButtonStar"
-            - "ButtonBreak"
-            - "ButtonStartBreak"
-            - "ButtonShift0"
-            - "ButtonShift1"
-            - "ButtonShift2"
-            - "ButtonShift3"
-            - "ButtonShift4"
-            - "ButtonShift5"
-            - "ButtonShift6"
-            - "ButtonShift7"
-            - "ButtonShift8"
-            - "ButtonShift9"
-            - "ButtonOnOffEnter"
-            - "ButtonOnOffEnter2"
-            - "ButtonReset"
-            - "ButtonNext"
-            - "ButtonYes"
-            - "ButtonInteriorStay"
-            - "ButtonInteriorStayLong"
-            - "ButtonPrev"
-            - "ButtonNo"
-            - "ButtonInstantAway"
-            - "ButtonInstantAwayLong"
-            - "ButtonBypass"
-            - "ButtonF"
-            - "ButtonA"
-            - "ButtonP"
-            - "ButtonFunctionMenu"
-            - "ButtonZoneDirectory"
-            - "ButtonLongPrefix"
