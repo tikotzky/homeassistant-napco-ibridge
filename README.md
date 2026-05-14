@@ -71,7 +71,7 @@ The action also accepts raw integer button codes for power users. Available butt
 ### HACS (recommended)
 
 1. Open HACS → Integrations → **⋮** → Custom repositories.
-2. Add `https://github.com/mordytk/homeassistant-napco-ibridge` with category **Integration**.
+2. Add `https://github.com/tikotzky/homeassistant-napco-ibridge` with category **Integration**.
 3. Install "Napco iBridge" and restart Home Assistant.
 
 ### Manual
@@ -102,7 +102,7 @@ The integration ships its own logo at `custom_components/napco_ibridge/brand/`. 
 
 ## Acknowledgements
 
-- The wire-protocol implementation is a Python port of the [`node-napco-ibridge`](https://github.com/mordytk/node-napco-ibridge) reverse-engineering work in this repo's parent directory.
+- The wire-protocol implementation is a Python port of the `node-napco-ibridge` reverse-engineering work in this repo's parent directory.
 - Project structure based on [`jpawlowski/hacs.integration_blueprint`](https://github.com/jpawlowski/hacs.integration_blueprint).
 
 ## License
@@ -111,5 +111,5 @@ MIT — see [LICENSE](LICENSE).
 
 [hacs]: https://github.com/hacs/integration
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
-[license-shield]: https://img.shields.io/github/license/mordytk/homeassistant-napco-ibridge.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-%40mordytk-blue.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/tikotzky/homeassistant-napco-ibridge.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-%40tikotzky-blue.svg?style=for-the-badge

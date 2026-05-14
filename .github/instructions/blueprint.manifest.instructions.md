@@ -18,12 +18,12 @@ This schema combines Home Assistant's official manifest requirements with HACS-s
 {
   "domain": "napco_ibridge",
   "name": "Napco iBridge",
-  "codeowners": ["@mordytk"],
+  "codeowners": ["@tikotzky"],
   "config_flow": true,
-  "documentation": "https://github.com/mordytk/homeassistant-napco-ibridge",
+  "documentation": "https://github.com/tikotzky/homeassistant-napco-ibridge",
   "integration_type": "device",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/mordytk/homeassistant-napco-ibridge/issues",
+  "issue_tracker": "https://github.com/tikotzky/homeassistant-napco-ibridge/issues",
   "requirements": [],
   "version": "0.0.0"
 }
@@ -82,7 +82,7 @@ GitHub usernames with `@` prefix:
 
 ```json
 "codeowners": [
-  "@mordytk"
+  "@tikotzky"
 ]
 ```
 
