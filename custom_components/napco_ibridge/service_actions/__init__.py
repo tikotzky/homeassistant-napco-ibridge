@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
+
 from homeassistant.const import ATTR_DEVICE_ID
 from homeassistant.core import ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -73,10 +74,7 @@ def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> NapcoIbridgeConfig
         raise ServiceValidationError(msg)
 
     if len(entries) > 1:
-        msg = (
-            "Multiple Napco iBridge panels are configured; specify config_entry or "
-            "device_id."
-        )
+        msg = "Multiple Napco iBridge panels are configured; specify config_entry or device_id."
         raise ServiceValidationError(msg)
     return entries[0]
 
@@ -96,5 +94,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_KEYS):
         hass.services.async_register(
-            DOMAIN, SERVICE_SEND_KEYS, handle_send_keys, schema=SEND_KEYS_SCHEMA,
+            DOMAIN,
+            SERVICE_SEND_KEYS,
+            handle_send_keys,
+            schema=SEND_KEYS_SCHEMA,
         )

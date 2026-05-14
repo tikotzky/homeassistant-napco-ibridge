@@ -26,7 +26,6 @@ FIRST_STATUS_TIMEOUT_SEC: Final = 5.0
 # Config entry keys
 CONF_HOST: Final = "host"
 CONF_CODE: Final = "code"
-CONF_SAVE_CODE: Final = "save_code"
 
 # Arm state values published by client
 ARM_STATE_DISARM: Final = "DISARM"

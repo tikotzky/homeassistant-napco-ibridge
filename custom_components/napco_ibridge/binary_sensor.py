@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -69,14 +70,12 @@ _DESCRIPTIONS: tuple[NapcoBinaryDescription, ...] = (
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     entry: NapcoIbridgeConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(
-        NapcoBinarySensor(coordinator, description) for description in _DESCRIPTIONS
-    )
+    async_add_entities(NapcoBinarySensor(coordinator, description) for description in _DESCRIPTIONS)
 
 
 class NapcoBinarySensor(NapcoIbridgeEntity, BinarySensorEntity):

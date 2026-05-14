@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-)
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
 from homeassistant.const import EntityCategory
 
 from .const import ARM_STATES, PARALLEL_UPDATES as _PARALLEL_UPDATES
@@ -39,7 +35,7 @@ _ARM_STATE = SensorEntityDescription(
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     entry: NapcoIbridgeConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
