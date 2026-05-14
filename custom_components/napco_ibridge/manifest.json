@@ -1,12 +1,14 @@
 {
   "domain": "napco_ibridge",
   "name": "Napco iBridge",
-  "codeowners": ["@tikotzky"],
+  "codeowners": [
+    "@tikotzky"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/tikotzky/homeassistant-napco-ibridge",
   "integration_type": "device",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/tikotzky/homeassistant-napco-ibridge/issues",
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }
