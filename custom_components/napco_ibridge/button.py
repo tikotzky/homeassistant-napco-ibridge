@@ -9,7 +9,6 @@ from homeassistant.components.button import ButtonEntity, ButtonEntityDescriptio
 
 from .api import BUTTONS
 from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
-from .coordinator import NapcoIbridgeDataUpdateCoordinator
 from .entity import NapcoIbridgeEntity
 
 if TYPE_CHECKING:

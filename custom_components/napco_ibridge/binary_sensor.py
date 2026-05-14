@@ -13,7 +13,6 @@ from homeassistant.components.binary_sensor import (
 
 from .api import NapcoStatus
 from .const import PARALLEL_UPDATES as _PARALLEL_UPDATES
-from .coordinator import NapcoIbridgeDataUpdateCoordinator
 from .entity import NapcoIbridgeEntity
 
 if TYPE_CHECKING:
