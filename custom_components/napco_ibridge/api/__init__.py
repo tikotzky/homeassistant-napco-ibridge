@@ -1,32 +1,30 @@
+"""API package for napco_ibridge.
+
+Exposes the async TCP client and discovery helper for the Napco iBridge
+protocol. Only the coordinator should drive the client; entities read state
+through the coordinator.
 """
-API package for napco_ibridge.
 
-Architecture:
-    Three-layer data flow: Entities → Coordinator → API Client.
-    Only the coordinator should call the API client. Entities must never
-    import or call the API client directly.
-
-Exception hierarchy:
-    NapcoIbridgeApiClientError (base)
-    ├── NapcoIbridgeApiClientCommunicationError (network/timeout)
-    └── NapcoIbridgeApiClientAuthenticationError (401/403)
-
-Coordinator exception mapping:
-    ApiClientAuthenticationError → ConfigEntryAuthFailed (triggers reauth)
-    ApiClientCommunicationError → UpdateFailed (auto-retry)
-    ApiClientError             → UpdateFailed (auto-retry)
-"""
+from __future__ import annotations
 
 from .client import (
+    BUTTONS,
+    DIGIT_BUTTONS,
     NapcoIbridgeApiClient,
     NapcoIbridgeApiClientAuthenticationError,
     NapcoIbridgeApiClientCommunicationError,
     NapcoIbridgeApiClientError,
+    NapcoStatus,
+    async_discover_panel,
 )
 
 __all__ = [
+    "BUTTONS",
+    "DIGIT_BUTTONS",
     "NapcoIbridgeApiClient",
     "NapcoIbridgeApiClientAuthenticationError",
     "NapcoIbridgeApiClientCommunicationError",
     "NapcoIbridgeApiClientError",
+    "NapcoStatus",
+    "async_discover_panel",
 ]
