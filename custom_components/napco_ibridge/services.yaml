@@ -1,9 +1,53 @@
 # yaml-language-server: $schema=../../schemas/yaml/services_schema.yaml
 # Service actions exposed by the Napco iBridge integration.
 
+send_code:
+  name: Send code
+  description: >-
+    Enter a numeric user code followed by a single action button (arm, disarm,
+    bypass, etc.). This is the friendliest way to script arm/disarm.
+  fields:
+    config_entry:
+      name: Panel
+      description: Config entry ID of the target panel (only needed when multiple are configured).
+      required: false
+      selector:
+        config_entry:
+          integration: napco_ibridge
+    code:
+      name: User code
+      description: The numeric user code to enter.
+      required: true
+      example: "1234"
+      selector:
+        text:
+          type: password
+    action:
+      name: Action
+      description: Which button to press after the digits.
+      required: true
+      default: "ButtonOnOffEnter"
+      selector:
+        select:
+          options:
+            - value: "ButtonOnOffEnter"
+              label: "Arm Away / Disarm (On-Off / Enter)"
+            - value: "ButtonInteriorStay"
+              label: "Arm Home (Interior / Stay)"
+            - value: "ButtonInteriorStayLong"
+              label: "Arm Night (Interior / Stay long-press)"
+            - value: "ButtonInstantAway"
+              label: "Instant Away"
+            - value: "ButtonInstantAwayLong"
+              label: "Instant Away long-press"
+            - value: "ButtonBypass"
+              label: "Bypass"
+            - value: "ButtonFunctionMenu"
+              label: "Function menu"
+
 send_keys:
   name: Send keys
-  description: Send a sequence of keypad button presses to a configured Napco panel.
+  description: Send an arbitrary sequence of keypad button presses to a configured Napco panel.
   fields:
     config_entry:
       name: Panel
