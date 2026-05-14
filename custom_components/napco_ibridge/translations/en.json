@@ -103,10 +103,40 @@
       },
       "function_menu": {
         "name": "Function menu"
+      },
+      "arm_away": {
+        "name": "Arm away"
+      },
+      "arm_home": {
+        "name": "Arm home"
+      },
+      "arm_night": {
+        "name": "Arm night"
+      },
+      "disarm": {
+        "name": "Disarm"
       }
     }
   },
   "services": {
+    "send_code": {
+      "name": "Send code",
+      "description": "Enter a numeric code followed by a single action button.",
+      "fields": {
+        "config_entry": {
+          "name": "Panel",
+          "description": "Which configured Napco iBridge panel to send to."
+        },
+        "code": {
+          "name": "User code",
+          "description": "The numeric user code to enter."
+        },
+        "action": {
+          "name": "Action",
+          "description": "Which button to press after the digits."
+        }
+      }
+    },
     "send_keys": {
       "name": "Send keys",
       "description": "Send a sequence of keypad button presses to the panel.",
@@ -117,7 +147,7 @@
         },
         "keys": {
           "name": "Keys",
-          "description": "Ordered list of buttons. Pick from the keypad names, or pass raw integer button codes in a YAML automation."
+          "description": "Ordered list of buttons. Each chip is one keystroke and the same button can be added multiple times."
         }
       }
     }

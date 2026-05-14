@@ -12,7 +12,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
 
-from ..api import BUTTONS, NapcoIbridgeApiClientCommunicationError
+from ..api import BUTTONS, DIGIT_BUTTONS, NapcoIbridgeApiClientCommunicationError
 from ..const import DOMAIN, LOGGER
 
 if TYPE_CHECKING:
@@ -21,8 +21,22 @@ if TYPE_CHECKING:
     from ..data import NapcoIbridgeConfigEntry
 
 SERVICE_SEND_KEYS = "send_keys"
+SERVICE_SEND_CODE = "send_code"
 ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_KEYS = "keys"
+ATTR_CODE = "code"
+ATTR_ACTION = "action"
+
+# Terminator buttons that make sense after a code.
+CODE_ACTION_BUTTONS: tuple[str, ...] = (
+    "ButtonOnOffEnter",
+    "ButtonInteriorStay",
+    "ButtonInteriorStayLong",
+    "ButtonInstantAway",
+    "ButtonInstantAwayLong",
+    "ButtonBypass",
+    "ButtonFunctionMenu",
+)
 
 
 def _coerce_key(value: Any) -> int:
@@ -30,7 +44,6 @@ def _coerce_key(value: Any) -> int:
     if isinstance(value, str):
         if value in BUTTONS:
             return BUTTONS[value]
-        # Allow integers passed as strings (e.g. from YAML)
         try:
             return int(value)
         except ValueError as err:
@@ -42,11 +55,36 @@ def _coerce_key(value: Any) -> int:
     raise vol.Invalid(msg)
 
 
+def _coerce_action(value: Any) -> str:
+    if not isinstance(value, str) or value not in CODE_ACTION_BUTTONS:
+        valid = ", ".join(CODE_ACTION_BUTTONS)
+        msg = f"action must be one of: {valid}"
+        raise vol.Invalid(msg)
+    return value
+
+
+def _coerce_code(value: Any) -> str:
+    if not isinstance(value, str) or not value.isdigit() or not value:
+        msg = "code must be a non-empty string of digits"
+        raise vol.Invalid(msg)
+    return value
+
+
 SEND_KEYS_SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
         vol.Optional(ATTR_DEVICE_ID): cv.string,
         vol.Required(ATTR_KEYS): vol.All(cv.ensure_list, [_coerce_key], vol.Length(min=1)),
+    },
+)
+
+
+SEND_CODE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+        vol.Optional(ATTR_DEVICE_ID): cv.string,
+        vol.Required(ATTR_CODE): _coerce_code,
+        vol.Required(ATTR_ACTION): _coerce_action,
     },
 )
 
@@ -92,10 +130,32 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 translation_key="send_failed",
             ) from err
 
+    async def handle_send_code(call: ServiceCall) -> None:
+        entry = _resolve_entry(hass, call)
+        code: str = call.data[ATTR_CODE]
+        action: str = call.data[ATTR_ACTION]
+        sequence = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in code]
+        sequence.append(BUTTONS[action])
+        try:
+            await entry.runtime_data.client.async_send_keys(sequence)
+        except NapcoIbridgeApiClientCommunicationError as err:
+            LOGGER.exception("send_code failed")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="send_failed",
+            ) from err
+
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_KEYS):
         hass.services.async_register(
             DOMAIN,
             SERVICE_SEND_KEYS,
             handle_send_keys,
             schema=SEND_KEYS_SCHEMA,
+        )
+    if not hass.services.has_service(DOMAIN, SERVICE_SEND_CODE):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SEND_CODE,
+            handle_send_code,
+            schema=SEND_CODE_SCHEMA,
         )
