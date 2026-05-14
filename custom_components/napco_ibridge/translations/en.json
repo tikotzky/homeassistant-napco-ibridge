@@ -97,24 +97,6 @@
       },
       "panic_police": {
         "name": "Panic — Police"
-      },
-      "bypass": {
-        "name": "Bypass"
-      },
-      "function_menu": {
-        "name": "Function menu"
-      },
-      "arm_away": {
-        "name": "Arm away"
-      },
-      "arm_home": {
-        "name": "Arm home"
-      },
-      "arm_night": {
-        "name": "Arm night"
-      },
-      "disarm": {
-        "name": "Disarm"
       }
     }
   },
