@@ -6,9 +6,8 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import OptionsFlow
+from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
     BooleanSelector,
     TextSelector,
@@ -72,7 +71,7 @@ class NapcoIbridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         if user_input is None:
             return self.async_show_menu(
                 step_id="user",
@@ -83,7 +82,7 @@ class NapcoIbridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_discover(
         self,
         _user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         try:
             host = await async_discover_panel()
         except NapcoIbridgeApiClientCommunicationError as err:
@@ -98,14 +97,14 @@ class NapcoIbridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_manual(
         self,
         _user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         self._discovered_host = None
         return await self.async_step_details()
 
     async def async_step_details(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         host_default = self._discovered_host or ""
         if user_input is not None:
@@ -148,7 +147,7 @@ class NapcoIbridgeOptionsFlow(OptionsFlow):
     async def async_step_init(
         self,
         user_input: dict[str, Any] | None = None,
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         if user_input is not None:
             save_code = user_input.get(CONF_SAVE_CODE, False)
             code = (user_input.get(CONF_CODE) or "").strip()
