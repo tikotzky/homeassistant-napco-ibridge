@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import socket
 from typing import Final
 
-from ..const import (
+from custom_components.napco_ibridge.const import (
     ARM_STATE_ARMING_AWAY,
     ARM_STATE_ARMING_NIGHT,
     ARM_STATE_ARMING_STAY,

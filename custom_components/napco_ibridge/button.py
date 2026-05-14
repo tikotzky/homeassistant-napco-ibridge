@@ -54,14 +54,12 @@ _DESCRIPTIONS: tuple[NapcoButtonDescription, ...] = (
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     entry: NapcoIbridgeConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(
-        NapcoButton(coordinator, description) for description in _DESCRIPTIONS
-    )
+    async_add_entities(NapcoButton(coordinator, description) for description in _DESCRIPTIONS)
 
 
 class NapcoButton(NapcoIbridgeEntity, ButtonEntity):

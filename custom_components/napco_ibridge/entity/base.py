@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from custom_components.napco_ibridge.const import CONF_HOST, DOMAIN, MANUFACTURER, MODEL
+from custom_components.napco_ibridge.coordinator import NapcoIbridgeDataUpdateCoordinator
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
-from ..const import CONF_HOST, DOMAIN, MANUFACTURER, MODEL
-from ..coordinator import NapcoIbridgeDataUpdateCoordinator
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity import EntityDescription

@@ -6,19 +6,17 @@ from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 
+from custom_components.napco_ibridge.api import BUTTONS, DIGIT_BUTTONS, NapcoIbridgeApiClientCommunicationError
+from custom_components.napco_ibridge.const import DOMAIN, LOGGER
 from homeassistant.const import ATTR_DEVICE_ID
 from homeassistant.core import ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
 
-from ..api import BUTTONS, DIGIT_BUTTONS, NapcoIbridgeApiClientCommunicationError
-from ..const import DOMAIN, LOGGER
-
 if TYPE_CHECKING:
+    from custom_components.napco_ibridge.data import NapcoIbridgeConfigEntry
     from homeassistant.core import HomeAssistant
-
-    from ..data import NapcoIbridgeConfigEntry
 
 SERVICE_SEND_KEYS = "send_keys"
 SERVICE_SEND_CODE = "send_code"

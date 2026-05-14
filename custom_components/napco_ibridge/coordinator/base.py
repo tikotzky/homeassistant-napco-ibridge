@@ -9,15 +9,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from custom_components.napco_ibridge.api import NapcoIbridgeApiClient, NapcoIbridgeApiClientError, NapcoStatus
+from custom_components.napco_ibridge.const import DOMAIN, LOGGER
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from ..api import NapcoIbridgeApiClient, NapcoIbridgeApiClientError, NapcoStatus
-from ..const import DOMAIN, LOGGER
-
 if TYPE_CHECKING:
+    from custom_components.napco_ibridge.data import NapcoIbridgeConfigEntry
     from homeassistant.core import HomeAssistant
-
-    from ..data import NapcoIbridgeConfigEntry
 
 
 class NapcoIbridgeDataUpdateCoordinator(DataUpdateCoordinator[NapcoStatus]):
