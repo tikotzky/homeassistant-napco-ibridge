@@ -4,7 +4,7 @@ applyTo: "**/manifest.json"
 
 # Manifest Instructions
 
-**Applies to:** `custom_components/ha_integration_domain/manifest.json`
+**Applies to:** `custom_components/napco_ibridge/manifest.json`
 
 ## Schema Validation
 
@@ -16,14 +16,14 @@ This schema combines Home Assistant's official manifest requirements with HACS-s
 
 ```json
 {
-  "domain": "ha_integration_domain",
-  "name": "Integration Blueprint",
-  "codeowners": ["@jpawlowski"],
+  "domain": "napco_ibridge",
+  "name": "Napco iBridge",
+  "codeowners": ["@mordytk"],
   "config_flow": true,
-  "documentation": "https://github.com/jpawlowski/hacs.integration_blueprint",
+  "documentation": "https://github.com/mordytk/homeassistant-napco-ibridge",
   "integration_type": "device",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/jpawlowski/hacs.integration_blueprint/issues",
+  "issue_tracker": "https://github.com/mordytk/homeassistant-napco-ibridge/issues",
   "requirements": [],
   "version": "0.0.0"
 }
@@ -82,7 +82,7 @@ GitHub usernames with `@` prefix:
 
 ```json
 "codeowners": [
-  "@jpawlowski"
+  "@mordytk"
 ]
 ```
 
