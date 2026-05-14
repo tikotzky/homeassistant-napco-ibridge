@@ -6,9 +6,7 @@
 
 Home Assistant integration for Napco GEM-series alarm panels that expose an **iBridge** module. Talks to the panel over the local network (no cloud), uses the same binary protocol that the Napco mobile app uses, and ships an alarm-control-panel entity plus sensors for the keypad display, LED states, and panic shortcuts.
 
-<p align="center">
-  <img src="custom_components/napco_ibridge/brand/icon.png" alt="Napco iBridge" width="160" />
-</p>
+![Napco iBridge](custom_components/napco_ibridge/brand/icon.png)
 
 ## Features
 
