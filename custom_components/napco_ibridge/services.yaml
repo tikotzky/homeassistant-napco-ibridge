@@ -31,19 +31,15 @@ send_code:
         select:
           options:
             - value: "ButtonOnOffEnter"
-              label: "Arm Away / Disarm (On-Off / Enter)"
-            - value: "ButtonInteriorStay"
-              label: "Arm Home (Interior / Stay)"
-            - value: "ButtonInteriorStayLong"
-              label: "Arm Night (Interior / Stay long-press)"
-            - value: "ButtonInstantAway"
-              label: "Instant Away"
-            - value: "ButtonInstantAwayLong"
-              label: "Instant Away long-press"
+              label: "Disarm (On-Off / Enter)"
             - value: "ButtonBypass"
               label: "Bypass"
             - value: "ButtonFunctionMenu"
               label: "Function menu"
+            - value: "ButtonInteriorStay"
+              label: "Interior / Stay (short)"
+            - value: "ButtonInstantAway"
+              label: "Instant Away (short)"
 
 send_keys:
   name: Send keys

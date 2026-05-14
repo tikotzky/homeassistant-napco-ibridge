@@ -29,6 +29,13 @@ class NapcoButtonDescription(ButtonEntityDescription):
 
 @dataclass(frozen=True, kw_only=True)
 class NapcoArmButtonDescription(ButtonEntityDescription):
+    """Bind an HA button to a fixed keypad sequence (no user code)."""
+
+    sequence: tuple[str, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class NapcoDisarmButtonDescription(ButtonEntityDescription):
     """Bind an HA button to a code + terminator key sequence."""
 
     terminator: str
@@ -69,32 +76,34 @@ _KEY_DESCRIPTIONS: tuple[NapcoButtonDescription, ...] = (
 )
 
 
-# Only added when the user code is stored on the config entry.
+# Arm shortcuts — no user code required, always available.
 _ARM_DESCRIPTIONS: tuple[NapcoArmButtonDescription, ...] = (
     NapcoArmButtonDescription(
         key="arm_away",
         translation_key="arm_away",
         icon="mdi:shield-lock",
-        terminator="ButtonOnOffEnter",
+        sequence=("ButtonInstantAwayLong",),
     ),
     NapcoArmButtonDescription(
         key="arm_home",
         translation_key="arm_home",
         icon="mdi:shield-home",
-        terminator="ButtonInteriorStay",
+        sequence=("ButtonInteriorStayLong",),
     ),
     NapcoArmButtonDescription(
         key="arm_night",
         translation_key="arm_night",
         icon="mdi:shield-moon",
-        terminator="ButtonInteriorStayLong",
+        sequence=("ButtonInteriorStayLong", "ButtonInteriorStayLong"),
     ),
-    NapcoArmButtonDescription(
-        key="disarm",
-        translation_key="disarm",
-        icon="mdi:shield-off",
-        terminator="ButtonOnOffEnter",
-    ),
+)
+
+# Disarm — needs the saved user code, so only emitted when one is stored.
+_DISARM_DESCRIPTION = NapcoDisarmButtonDescription(
+    key="disarm",
+    translation_key="disarm",
+    icon="mdi:shield-off",
+    terminator="ButtonOnOffEnter",
 )
 
 
@@ -107,11 +116,12 @@ async def async_setup_entry(
     entities: list[ButtonEntity] = [
         NapcoButton(coordinator, description) for description in _KEY_DESCRIPTIONS
     ]
+    entities.extend(
+        NapcoArmButton(coordinator, description)
+        for description in _ARM_DESCRIPTIONS
+    )
     if entry.data.get(CONF_CODE):
-        entities.extend(
-            NapcoArmButton(coordinator, description, entry)
-            for description in _ARM_DESCRIPTIONS
-        )
+        entities.append(NapcoDisarmButton(coordinator, _DISARM_DESCRIPTION, entry))
     async_add_entities(entities)
 
 
@@ -124,9 +134,19 @@ class NapcoButton(NapcoIbridgeEntity, ButtonEntity):
 
 
 class NapcoArmButton(NapcoIbridgeEntity, ButtonEntity):
-    """Arm or disarm with the saved user code in a single press."""
+    """Arm via a fixed long-press sequence (no user code required)."""
 
     entity_description: NapcoArmButtonDescription
+
+    async def async_press(self) -> None:
+        keys = [BUTTONS[name] for name in self.entity_description.sequence]
+        await self.coordinator.client.async_send_keys(keys)
+
+
+class NapcoDisarmButton(NapcoIbridgeEntity, ButtonEntity):
+    """Disarm with the saved user code in a single press."""
+
+    entity_description: NapcoDisarmButtonDescription
 
     def __init__(self, coordinator, description, entry: NapcoIbridgeConfigEntry) -> None:  # noqa: ANN001
         super().__init__(coordinator, description)
@@ -135,8 +155,8 @@ class NapcoArmButton(NapcoIbridgeEntity, ButtonEntity):
     async def async_press(self) -> None:
         code: str | None = self._entry.data.get(CONF_CODE)
         if not code:
-            # Code was removed via options flow after entity was created;
-            # the entry will reload shortly. Quietly do nothing.
+            # Code was cleared via options flow after the entity was created;
+            # the entry will reload shortly. Quietly no-op.
             return
         sequence = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in code]
         sequence.append(BUTTONS[self.entity_description.terminator])

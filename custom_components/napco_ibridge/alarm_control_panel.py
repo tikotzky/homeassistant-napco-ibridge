@@ -86,10 +86,13 @@ class NapcoAlarmPanel(NapcoIbridgeEntity, AlarmControlPanelEntity):
 
     @property
     def code_arm_required(self) -> bool:
-        return self._saved_code is None
+        # Napco arms via long-press buttons that don't require a code; only
+        # disarm needs the user code.
+        return False
 
     @property
     def code_format(self) -> CodeFormat | None:
+        # Disarm still needs a numeric code if none is saved.
         return CodeFormat.NUMBER if self._saved_code is None else None
 
     @property
@@ -126,20 +129,20 @@ class NapcoAlarmPanel(NapcoIbridgeEntity, AlarmControlPanelEntity):
             )
         return code
 
-    async def _send_arm_sequence(self, code: str | None, terminator: int) -> None:
+    async def async_alarm_disarm(self, code: str | None = None) -> None:
         digits = self._resolve_code(code)
         sequence = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in digits]
-        sequence.append(terminator)
+        sequence.append(BUTTONS["ButtonOnOffEnter"])
         await self.coordinator.client.async_send_keys(sequence)
 
-    async def async_alarm_disarm(self, code: str | None = None) -> None:
-        await self._send_arm_sequence(code, BUTTONS["ButtonOnOffEnter"])
+    async def async_alarm_arm_away(self, _code: str | None = None) -> None:
+        await self.coordinator.client.async_send_keys([BUTTONS["ButtonInstantAwayLong"]])
 
-    async def async_alarm_arm_away(self, code: str | None = None) -> None:
-        await self._send_arm_sequence(code, BUTTONS["ButtonOnOffEnter"])
+    async def async_alarm_arm_home(self, _code: str | None = None) -> None:
+        await self.coordinator.client.async_send_keys([BUTTONS["ButtonInteriorStayLong"]])
 
-    async def async_alarm_arm_home(self, code: str | None = None) -> None:
-        await self._send_arm_sequence(code, BUTTONS["ButtonInteriorStay"])
-
-    async def async_alarm_arm_night(self, code: str | None = None) -> None:
-        await self._send_arm_sequence(code, BUTTONS["ButtonInteriorStayLong"])
+    async def async_alarm_arm_night(self, _code: str | None = None) -> None:
+        # Two long-presses of Interior Stay.
+        await self.coordinator.client.async_send_keys(
+            [BUTTONS["ButtonInteriorStayLong"], BUTTONS["ButtonInteriorStayLong"]],
+        )
