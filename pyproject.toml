@@ -278,6 +278,18 @@ split-on-trailing-comma = false
     "D",       # Docstrings not required in tests
     "PTH",     # Use pathlib - temporary exemption for tests
 ]
+"custom_components/*" = [
+    # Relax HA-Core-grade docstring rules for this custom integration.
+    # Module-level and meaningfully-public APIs still have docstrings;
+    # we don't want one on every property/coroutine/inner class.
+    "D101", # Missing docstring in public class
+    "D102", # Missing docstring in public method
+    "D103", # Missing docstring in public function
+    "D107", # Missing docstring in __init__
+    # The HomeAssistantError wrappers in service handlers intentionally
+    # translate exceptions; ruff's TRY203 treats them as redundant.
+    "TRY203",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25
