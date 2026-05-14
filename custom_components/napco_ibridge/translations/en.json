@@ -2,152 +2,136 @@
   "config": {
     "step": {
       "user": {
-        "description": "If you need help with the configuration have a look at the [documentation]({documentation_url}).",
-        "data": {
-          "username": "Username",
-          "password": "Password"
+        "title": "Napco iBridge",
+        "description": "Locate your Napco iBridge panel automatically, or enter its IP manually.",
+        "menu_options": {
+          "discover": "Auto-discover panel (UDP broadcast)",
+          "manual": "Enter IP manually"
         }
       },
-      "reconfigure": {
-        "description": "Update the credentials for this integration.",
+      "details": {
+        "title": "Panel details",
+        "description": "Enter the iBridge panel IP. Optionally save your user code so Home Assistant can arm and disarm without prompting.",
         "data": {
-          "username": "Username",
-          "password": "Password"
-        }
-      },
-      "reauth_confirm": {
-        "title": "Reauthenticate Integration",
-        "description": "The credentials for {username} are no longer valid. Please provide updated credentials to restore access.",
-        "data": {
-          "username": "Username",
-          "password": "Password"
+          "host": "Panel IP address",
+          "save_code": "Save user code in Home Assistant",
+          "code": "User code"
+        },
+        "data_description": {
+          "save_code": "If disabled, Home Assistant will ask for the code each time you arm or disarm.",
+          "code": "Required only when 'Save user code' is enabled."
         }
       }
     },
     "error": {
-      "auth": "Username/Password is wrong.",
-      "connection": "Unable to connect to the server.",
-      "unknown": "Unknown error occurred."
+      "cannot_connect": "Could not reach the panel at that address.",
+      "no_discovery": "No panel responded to the discovery broadcast.",
+      "code_required": "A user code is required when 'Save user code' is enabled."
     },
     "abort": {
-      "already_configured": "This entry is already configured."
+      "already_configured": "This panel is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Configure Integration Options",
-        "description": "Customize how this integration operates.",
+        "title": "Napco iBridge options",
+        "description": "Toggle whether the user code is stored in Home Assistant.",
         "data": {
-          "update_interval_hours": "Update interval (hours)",
-          "enable_debugging": "Enable debug logging",
-          "custom_icon": "Custom icon (optional)"
+          "save_code": "Save user code in Home Assistant",
+          "code": "User code"
         },
         "data_description": {
-          "update_interval_hours": "How often to refresh data from the API (0.25 to 24 hours)",
-          "enable_debugging": "Enable detailed debug logging for troubleshooting",
-          "custom_icon": "Override the default icon for entities (optional)"
+          "save_code": "If disabled, Home Assistant will ask for the code each time you arm or disarm.",
+          "code": "Required only when 'Save user code' is enabled."
+        }
+      }
+    },
+    "error": {
+      "code_required": "A user code is required when 'Save user code' is enabled."
+    }
+  },
+  "entity": {
+    "alarm_control_panel": {
+      "panel": {
+        "name": "Panel"
+      }
+    },
+    "sensor": {
+      "display": {
+        "name": "Display"
+      },
+      "arm_state": {
+        "name": "Arm state",
+        "state": {
+          "disarm": "Disarmed",
+          "stay": "Armed home",
+          "away": "Armed away",
+          "night": "Armed night",
+          "arming_stay": "Arming home",
+          "arming_away": "Arming away",
+          "arming_night": "Arming night",
+          "not_ready": "Not ready"
+        }
+      }
+    },
+    "binary_sensor": {
+      "trouble": {
+        "name": "Trouble"
+      },
+      "fire": {
+        "name": "Fire"
+      },
+      "fire_trouble": {
+        "name": "Fire trouble"
+      },
+      "bypass": {
+        "name": "Bypass active"
+      },
+      "sounder": {
+        "name": "Sounder"
+      }
+    },
+    "button": {
+      "panic_fire": {
+        "name": "Panic — Fire"
+      },
+      "panic_ambulance": {
+        "name": "Panic — Ambulance"
+      },
+      "panic_police": {
+        "name": "Panic — Police"
+      },
+      "bypass": {
+        "name": "Bypass"
+      },
+      "function_menu": {
+        "name": "Function menu"
+      }
+    }
+  },
+  "services": {
+    "send_keys": {
+      "name": "Send keys",
+      "description": "Send a sequence of keypad button presses to the panel.",
+      "fields": {
+        "config_entry": {
+          "name": "Panel",
+          "description": "Which configured Napco iBridge panel to send to."
+        },
+        "keys": {
+          "name": "Keys",
+          "description": "Ordered list of buttons. Pick from the keypad names, or pass raw integer button codes in a YAML automation."
         }
       }
     }
   },
   "exceptions": {
-    "authentication_failed": {
-      "message": "Authentication failed during data update."
+    "send_failed": {
+      "message": "Failed to send keys to the panel."
     },
-    "update_failed": {
-      "message": "Failed to update data from the server."
-    },
-    "switch_turn_on_failed": {
-      "message": "Failed to turn on the switch."
-    },
-    "switch_turn_off_failed": {
-      "message": "Failed to turn off the switch."
-    },
-    "number_set_failed": {
-      "message": "Failed to set the target value."
-    }
-  },
-  "entity": {
-    "sensor": {
-      "air_quality_index": {
-        "name": "Air Quality Index"
-      },
-      "pm25": {
-        "name": "PM2.5"
-      },
-      "filter_life": {
-        "name": "Filter Life Remaining"
-      },
-      "runtime": {
-        "name": "Total Runtime"
-      }
-    },
-    "binary_sensor": {
-      "api_connectivity": {
-        "name": "API Connection"
-      },
-      "filter_replacement": {
-        "name": "Filter Replacement Needed"
-      }
-    },
-    "switch": {
-      "child_lock": {
-        "name": "Child Lock"
-      },
-      "led_display": {
-        "name": "LED Display"
-      }
-    },
-    "select": {
-      "fan_speed": {
-        "name": "Fan Speed",
-        "state": {
-          "low": "Low",
-          "medium": "Medium",
-          "high": "High",
-          "auto": "Auto"
-        }
-      }
-    },
-    "number": {
-      "target_humidity": {
-        "name": "Target Humidity"
-      }
-    },
-    "button": {
-      "reset_filter": {
-        "name": "Reset Filter Timer"
-      }
-    },
-    "fan": {
-      "air_purifier": {
-        "name": "Air Purifier"
-      }
-    }
-  },
-  "issues": {
-    "deprecated_api_endpoint": {
-      "title": "Deprecated API Endpoint",
-      "fix_flow": {
-        "step": {
-          "init": {
-            "title": "Update API Endpoint",
-            "description": "Your device is using API version {api_version} which is deprecated. Please update to v2 for continued support and new features.\n\nClick Submit to update your device to use the new API endpoint (v2). This will reload the integration."
-          }
-        }
-      }
-    },
-    "missing_configuration": {
-      "title": "Missing Configuration",
-      "fix_flow": {
-        "step": {
-          "init": {
-            "title": "Acknowledge Configuration Issue",
-            "description": "Some configuration options are missing or invalid. Please reconfigure the integration to ensure proper operation.\n\nClick Submit to acknowledge this issue. You may need to reconfigure the integration if problems persist."
-          }
-        }
-      }
+    "code_required": {
+      "message": "A user code is required for this action."
     }
   }
 }
