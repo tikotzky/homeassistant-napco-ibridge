@@ -1,237 +1,433 @@
-"""
-API Client for napco_ibridge.
+"""Async client for the Napco iBridge GEM-K1 keypad protocol.
 
-This module provides the API client for communicating with external services.
-It demonstrates proper error handling, authentication patterns, and async operations.
-
-For more information on creating API clients:
-https://developers.home-assistant.io/docs/api_lib_index
+Port of the JavaScript reference in ../../node-napco-ibridge/ibridge.js and
+discover-panel.js. Speaks the panel's binary protocol over TCP:8000 (status
+polling + button presses) and the UDP:30717 discovery broadcast.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import socket
-from typing import Any
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Final
 
-import aiohttp
+from ..const import (
+    ARM_STATE_ARMING_AWAY,
+    ARM_STATE_ARMING_NIGHT,
+    ARM_STATE_ARMING_STAY,
+    ARM_STATE_AWAY,
+    ARM_STATE_DISARM,
+    ARM_STATE_NIGHT,
+    ARM_STATE_NOT_READY,
+    ARM_STATE_STAY,
+    CONNECT_TIMEOUT_SEC,
+    DISCOVERY_PACKET,
+    DISCOVERY_PORT,
+    DISCOVERY_RESPONSE_LENGTH,
+    DISCOVERY_TIMEOUT_SEC,
+    FIRST_STATUS_TIMEOUT_SEC,
+    LOGGER,
+    STATUS_POLL_INTERVAL_SEC,
+    TCP_PORT,
+)
 
 
 class NapcoIbridgeApiClientError(Exception):
-    """Base exception to indicate a general API error."""
+    """Base exception for Napco client errors."""
 
 
-class NapcoIbridgeApiClientCommunicationError(
-    NapcoIbridgeApiClientError,
-):
-    """Exception to indicate a communication error with the API."""
+class NapcoIbridgeApiClientCommunicationError(NapcoIbridgeApiClientError):
+    """Raised on network / protocol failures."""
 
 
-class NapcoIbridgeApiClientAuthenticationError(
-    NapcoIbridgeApiClientError,
-):
-    """Exception to indicate an authentication error with the API."""
+class NapcoIbridgeApiClientAuthenticationError(NapcoIbridgeApiClientError):
+    """Reserved for future use; the iBridge has no auth."""
 
 
-def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
-    """
-    Verify that the API response is valid.
+BUTTONS: Final[dict[str, int]] = {
+    "ButtonBreak": 0,
+    "Button1": 1,
+    "Button2": 2,
+    "Button3": 3,
+    "Button4": 4,
+    "Button5": 5,
+    "Button6": 6,
+    "Button7": 7,
+    "Button8": 8,
+    "Button9": 9,
+    "Button0": 10,
+    "ButtonStar": 11,
+    "ButtonStartBreak": 12,
+    "ButtonShift1": 17,
+    "ButtonShift2": 18,
+    "ButtonShift3": 19,
+    "ButtonShift4": 20,
+    "ButtonShift5": 21,
+    "ButtonShift6": 22,
+    "ButtonShift7": 23,
+    "ButtonShift8": 24,
+    "ButtonShift9": 25,
+    "ButtonShift0": 26,
+    "ButtonOnOffEnter": -128,
+    "ButtonReset": -127,
+    "ButtonNext": -126,
+    "ButtonYes": -126,
+    "ButtonInteriorStay": -126,
+    "ButtonPrev": -125,
+    "ButtonNo": -125,
+    "ButtonInstantAway": -125,
+    "ButtonBypass": -124,
+    "ButtonF": -123,
+    "ButtonA": -122,
+    "ButtonP": -121,
+    "ButtonFunctionMenu": -120,
+    "ButtonOnOffEnter2": -112,
+    "ButtonInteriorStayLong": -101,
+    "ButtonInstantAwayLong": -100,
+    "ButtonZoneDirectory": -32,
+    "ButtonLongPrefix": -16,
+}
 
-    Raises appropriate exceptions for authentication and HTTP errors.
+DIGIT_BUTTONS: Final = (
+    "Button0",
+    "Button1",
+    "Button2",
+    "Button3",
+    "Button4",
+    "Button5",
+    "Button6",
+    "Button7",
+    "Button8",
+    "Button9",
+)
 
-    Args:
-        response: The aiohttp ClientResponse to verify.
+_PANEL_GEM_K1: Final = 73
+_LED_STATES: Final = {
+    1: "On",
+    2: "SlowBlink",
+    3: "Blip",
+    4: "CadenceA",
+    5: "CadenceB",
+    6: "InstantBlink",
+    7: "NAKSound",
+}
 
-    Raises:
-        NapcoIbridgeApiClientAuthenticationError: For 401/403 errors.
-        aiohttp.ClientResponseError: For other HTTP errors.
 
-    """
-    if response.status in (401, 403):
-        msg = "Invalid credentials"
-        raise NapcoIbridgeApiClientAuthenticationError(
-            msg,
-        )
-    response.raise_for_status()
+@dataclass
+class NapcoStatus:
+    """Latest known panel state, merged from all observed frames."""
+
+    arm_status: str = ARM_STATE_NOT_READY
+    armed_led: str = "Off"
+    status_led: str = "Off"
+    trouble_led: str = "Off"
+    fire_led: str = "Off"
+    fire_trouble_led: str = "Off"
+    bypass_led: str = "Off"
+    sounder: str = "Off"
+    text_line_1: str = ""
+    text_line_2: str = ""
+    area: int = 0
+    cursor_row: int = 0
+    cursor_column: int = 0
+    raw: dict = field(default_factory=dict)
+
+
+def _to_signed_byte(value: int) -> int:
+    return value & 0xFF
+
+
+def _append_checksum(payload: bytes) -> bytes:
+    if len(payload) < 2:
+        msg = "Invalid packet"
+        raise NapcoIbridgeApiClientCommunicationError(msg)
+    checksum = sum(b & 0xFF for b in payload)
+    return payload + bytes([(checksum >> 8) & 0xFF, checksum & 0xFF])
+
+
+def _status_buffer() -> bytes:
+    return _append_checksum(bytes([0xB8, 0x00, 0x09, 0x00, 0x01, 0x49, 0x01]))
+
+
+def _button_buffer(button_codes: list[int], sequence: int) -> bytes:
+    length = len(button_codes) + 9
+    header = bytes(
+        [
+            0xB7,
+            (length >> 8) & 0xFF,
+            length & 0xFF,
+            0x00,
+            (sequence + 1) & 0xFF,
+            0x49,
+            0x01,
+        ],
+    )
+    body = bytes(_to_signed_byte(code) for code in button_codes)
+    return _append_checksum(header + body)
+
+
+def _led_from_byte(byte: int) -> str:
+    return _LED_STATES.get(byte, "Off")
+
+
+def _is_gem_k1_keypad_status(buffer: bytes) -> bool:
+    return len(buffer) >= 32 and buffer[0] == 0xBB and buffer[5] == _PANEL_GEM_K1
+
+
+def _is_keypad_text_update(buffer: bytes) -> bool:
+    return buffer[3] == 2 and len(buffer) > 40
+
+
+def _derive_arm_status(text1: str, text2: str, armed_led: str, status_led: str) -> str:
+    is_armed = "ARMED" in (text1 or "") or "ARMED" in (text2 or "")
+    if armed_led == "InstantBlink":
+        return ARM_STATE_NIGHT if is_armed else ARM_STATE_ARMING_NIGHT
+    if status_led == "CadenceB" and armed_led == "On":
+        return ARM_STATE_STAY if is_armed else ARM_STATE_ARMING_STAY
+    if status_led == "Off" and armed_led == "On":
+        return ARM_STATE_AWAY if is_armed else ARM_STATE_ARMING_AWAY
+    if status_led == "On" and armed_led == "Off":
+        return ARM_STATE_DISARM
+    return ARM_STATE_NOT_READY
+
+
+def _decode_text(buffer: bytes, start: int, end: int) -> str:
+    return buffer[start:end].decode("utf-8", errors="replace")
+
+
+def _parse_frame(buffer: bytes) -> dict | None:
+    """Parse one inbound TCP frame; return delta dict or None to ignore."""
+    if not _is_gem_k1_keypad_status(buffer):
+        return None
+    if _is_keypad_text_update(buffer):
+        return {
+            "cursor_row": buffer[6],
+            "cursor_column": buffer[7],
+            "area": buffer[40] if len(buffer) == 43 else 0,
+            "text_line_1": _decode_text(buffer, 8, 24),
+            "text_line_2": _decode_text(buffer, 24, 40),
+        }
+    return {
+        "fire_led": _led_from_byte(buffer[7]),
+        "trouble_led": _led_from_byte(buffer[8]),
+        "status_led": _led_from_byte(buffer[9]),
+        "armed_led": _led_from_byte(buffer[10]),
+        "fire_trouble_led": _led_from_byte(buffer[11]),
+        "bypass_led": _led_from_byte(buffer[12]),
+        "sounder": _led_from_byte(buffer[19]),
+    }
+
+
+class _DiscoveryProtocol(asyncio.DatagramProtocol):
+    def __init__(self, future: asyncio.Future[str]) -> None:
+        self._future = future
+        self.transport: asyncio.DatagramTransport | None = None
+
+    def connection_made(self, transport: asyncio.BaseTransport) -> None:
+        self.transport = transport  # type: ignore[assignment]
+        sock = transport.get_extra_info("socket")
+        if sock is not None:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        transport.sendto(DISCOVERY_PACKET, ("255.255.255.255", DISCOVERY_PORT))  # type: ignore[attr-defined]
+
+    def datagram_received(self, data: bytes, addr: tuple) -> None:
+        if len(data) != DISCOVERY_RESPONSE_LENGTH:
+            return
+        if not self._future.done():
+            self._future.set_result(addr[0])
+
+    def error_received(self, exc: Exception) -> None:
+        if not self._future.done():
+            self._future.set_exception(exc)
+
+
+async def async_discover_panel(timeout: float = DISCOVERY_TIMEOUT_SEC) -> str:
+    """Broadcast a discovery packet and return the first responding panel IP."""
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[str] = loop.create_future()
+    transport, _protocol = await loop.create_datagram_endpoint(
+        lambda: _DiscoveryProtocol(future),
+        local_addr=("0.0.0.0", DISCOVERY_PORT),
+        family=socket.AF_INET,
+        allow_broadcast=True,
+    )
+    try:
+        async with asyncio.timeout(timeout):
+            return await future
+    except TimeoutError as err:
+        msg = "Timed out waiting for panel discovery response"
+        raise NapcoIbridgeApiClientCommunicationError(msg) from err
+    finally:
+        transport.close()
 
 
 class NapcoIbridgeApiClient:
-    """
-    API Client for Smart Air Purifier integration.
+    """Persistent async client for a single Napco panel."""
 
-    This client demonstrates authentication and API communication patterns
-    for Home Assistant integrations. It handles HTTP requests, error handling,
-    and credential management.
+    def __init__(self, host: str) -> None:
+        self._host = host
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._sequence = 0
+        self._status = NapcoStatus()
+        self._listeners: list[Callable[[NapcoStatus], None]] = []
+        self._reader_task: asyncio.Task[None] | None = None
+        self._poller_task: asyncio.Task[None] | None = None
+        self._first_status_event = asyncio.Event()
+        self._write_lock = asyncio.Lock()
+        self._closing = False
 
-    The username and password are stored and would be used for:
-    - HTTP Basic Auth headers
-    - OAuth token exchange
-    - API key generation
-    - Session token management
+    @property
+    def host(self) -> str:
+        return self._host
 
-    Note: JSONPlaceholder is used as a demo endpoint and doesn't require auth.
-    In production, replace with your actual API endpoint that validates credentials.
+    @property
+    def status(self) -> NapcoStatus:
+        return self._status
 
-    For more information on API clients:
-    https://developers.home-assistant.io/docs/api_lib_index
+    @property
+    def is_connected(self) -> bool:
+        return self._writer is not None and not self._writer.is_closing()
 
-    Attributes:
-        _username: The username for API authentication.
-        _password: The password for API authentication.
-        _session: The aiohttp ClientSession for making requests.
+    def add_listener(self, callback: Callable[[NapcoStatus], None]) -> Callable[[], None]:
+        self._listeners.append(callback)
 
-    """
+        def _remove() -> None:
+            with contextlib.suppress(ValueError):
+                self._listeners.remove(callback)
 
-    def __init__(
-        self,
-        username: str,
-        password: str,
-        session: aiohttp.ClientSession,
-    ) -> None:
-        """
-        Initialize the API Client with credentials.
+        return _remove
 
-        Args:
-            username: The username for authentication from config flow.
-            password: The password for authentication from config flow.
-            session: The aiohttp ClientSession to use for requests.
-
-        """
-        self._username = username
-        self._password = password
-        self._session = session
-
-    async def async_get_data(self) -> Any:
-        """
-        Get data from the API.
-
-        This method fetches the current state and sensor data from the device.
-        It demonstrates where credentials would be used in production:
-        - Authorization headers (Basic Auth, Bearer Token)
-        - Query parameters (username, api_key)
-        - Session cookies (after login)
-
-        Returns:
-            A dictionary containing the device data.
-
-        Raises:
-            NapcoIbridgeApiClientAuthenticationError: If authentication fails.
-            NapcoIbridgeApiClientCommunicationError: If communication fails.
-            NapcoIbridgeApiClientError: For other API errors.
-
-        """
-        # In production: Use username/password for authentication
-        # Example patterns:
-        # 1. Basic Auth: auth=aiohttp.BasicAuth(self._username, self._password)
-        # 2. Token: headers={"Authorization": f"Bearer {self._get_token()}"}
-        # 3. API Key: params={"username": self._username, "key": self._password}
-
-        return await self._api_wrapper(
-            method="get",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            # For demo purposes with JSONPlaceholder (no auth required)
-            # In production, add authentication here
-        )
-
-    async def async_set_fan_speed(self, speed: str) -> Any:
-        """
-        Set the fan speed on the device.
-
-        Args:
-            speed: The fan speed to set (low, medium, high, auto).
-
-        Returns:
-            A dictionary containing the API response.
-
-        Raises:
-            NapcoIbridgeApiClientAuthenticationError: If authentication fails.
-            NapcoIbridgeApiClientCommunicationError: If communication fails.
-            NapcoIbridgeApiClientError: For other API errors.
-
-        """
-        # In production: Send authenticated request to change fan speed
-        return await self._api_wrapper(
-            method="patch",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            data={"fan_speed": speed, "user": self._username},
-            headers={"Content-type": "application/json; charset=UTF-8"},
-        )
-
-    async def async_set_target_humidity(self, humidity: int) -> Any:
-        """
-        Set the target humidity on the device.
-
-        Args:
-            humidity: The target humidity percentage (30-80).
-
-        Returns:
-            A dictionary containing the API response.
-
-        Raises:
-            NapcoIbridgeApiClientAuthenticationError: If authentication fails.
-            NapcoIbridgeApiClientCommunicationError: If communication fails.
-            NapcoIbridgeApiClientError: For other API errors.
-
-        """
-        # In production: Send authenticated request to change humidity setting
-        return await self._api_wrapper(
-            method="patch",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            data={"target_humidity": humidity, "user": self._username},
-            headers={"Content-type": "application/json; charset=UTF-8"},
-        )
-
-    async def _api_wrapper(
-        self,
-        method: str,
-        url: str,
-        data: dict | None = None,
-        headers: dict | None = None,
-    ) -> Any:
-        """
-        Wrapper for API requests with error handling.
-
-        This method handles all HTTP requests and translates exceptions
-        into integration-specific exceptions.
-
-        Args:
-            method: The HTTP method (get, post, patch, etc.).
-            url: The URL to request.
-            data: Optional data to send in the request body.
-            headers: Optional headers to include in the request.
-
-        Returns:
-            The JSON response from the API.
-
-        Raises:
-            NapcoIbridgeApiClientAuthenticationError: If authentication fails.
-            NapcoIbridgeApiClientCommunicationError: If communication fails.
-            NapcoIbridgeApiClientError: For other API errors.
-
-        """
+    async def async_connect(self) -> None:
+        """Open the TCP connection and wait for the first status frame."""
+        if self.is_connected:
+            return
+        self._closing = False
         try:
-            async with asyncio.timeout(10):
-                response = await self._session.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    json=data,
+            async with asyncio.timeout(CONNECT_TIMEOUT_SEC):
+                self._reader, self._writer = await asyncio.open_connection(
+                    self._host, TCP_PORT,
                 )
-                _verify_response_or_raise(response)
-                return await response.json()
+        except (OSError, TimeoutError) as err:
+            msg = f"Unable to reach Napco panel at {self._host}:{TCP_PORT}"
+            raise NapcoIbridgeApiClientCommunicationError(msg) from err
 
-        except TimeoutError as exception:
-            msg = f"Timeout error fetching information - {exception}"
-            raise NapcoIbridgeApiClientCommunicationError(
-                msg,
-            ) from exception
-        except (aiohttp.ClientError, socket.gaierror) as exception:
-            msg = f"Error fetching information - {exception}"
-            raise NapcoIbridgeApiClientCommunicationError(
-                msg,
-            ) from exception
-        except Exception as exception:
-            msg = f"Something really wrong happened! - {exception}"
-            raise NapcoIbridgeApiClientError(
-                msg,
-            ) from exception
+        self._first_status_event.clear()
+        self._reader_task = asyncio.create_task(
+            self._read_loop(), name=f"napco-ibridge-reader-{self._host}",
+        )
+        self._poller_task = asyncio.create_task(
+            self._poll_loop(), name=f"napco-ibridge-poller-{self._host}",
+        )
+
+        try:
+            async with asyncio.timeout(FIRST_STATUS_TIMEOUT_SEC):
+                await self._first_status_event.wait()
+        except TimeoutError as err:
+            await self.async_disconnect()
+            msg = "Connected but never received a status frame from the panel"
+            raise NapcoIbridgeApiClientCommunicationError(msg) from err
+
+    async def async_disconnect(self) -> None:
+        self._closing = True
+        for task in (self._poller_task, self._reader_task):
+            if task and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+        self._reader_task = None
+        self._poller_task = None
+        if self._writer is not None:
+            with contextlib.suppress(Exception):
+                self._writer.close()
+                await self._writer.wait_closed()
+        self._writer = None
+        self._reader = None
+
+    async def async_send_keys(self, key_codes: list[int]) -> None:
+        if not self.is_connected:
+            msg = "Cannot send keys; panel is not connected"
+            raise NapcoIbridgeApiClientCommunicationError(msg)
+        async with self._write_lock:
+            self._sequence = (self._sequence + 1) & 0xFF
+            buffer = _button_buffer(key_codes, self._sequence)
+            try:
+                assert self._writer is not None  # noqa: S101 — guarded by is_connected
+                self._writer.write(buffer)
+                await self._writer.drain()
+            except OSError as err:
+                msg = f"Failed sending keys to panel: {err}"
+                raise NapcoIbridgeApiClientCommunicationError(msg) from err
+
+    async def _poll_loop(self) -> None:
+        try:
+            while not self._closing and self.is_connected:
+                async with self._write_lock:
+                    try:
+                        assert self._writer is not None  # noqa: S101
+                        self._writer.write(_status_buffer())
+                        await self._writer.drain()
+                    except OSError as err:
+                        LOGGER.warning("Napco poll write failed: %s", err)
+                        break
+                await asyncio.sleep(STATUS_POLL_INTERVAL_SEC)
+        except asyncio.CancelledError:
+            raise
+
+    async def _read_loop(self) -> None:
+        assert self._reader is not None  # noqa: S101
+        try:
+            while not self._closing:
+                try:
+                    chunk = await self._reader.read(4096)
+                except OSError as err:
+                    LOGGER.warning("Napco read failed: %s", err)
+                    break
+                if not chunk:
+                    LOGGER.info("Napco panel %s closed connection", self._host)
+                    break
+                delta = _parse_frame(chunk)
+                if delta is None:
+                    continue
+                self._apply_delta(delta)
+        except asyncio.CancelledError:
+            raise
+
+    def _apply_delta(self, delta: dict) -> None:
+        merged_raw = {**self._status.raw, **delta}
+        # Bail early if nothing changed (matches the JS behavior).
+        if merged_raw == self._status.raw:
+            return
+
+        new_status = NapcoStatus(
+            armed_led=merged_raw.get("armed_led", self._status.armed_led),
+            status_led=merged_raw.get("status_led", self._status.status_led),
+            trouble_led=merged_raw.get("trouble_led", self._status.trouble_led),
+            fire_led=merged_raw.get("fire_led", self._status.fire_led),
+            fire_trouble_led=merged_raw.get("fire_trouble_led", self._status.fire_trouble_led),
+            bypass_led=merged_raw.get("bypass_led", self._status.bypass_led),
+            sounder=merged_raw.get("sounder", self._status.sounder),
+            text_line_1=merged_raw.get("text_line_1", self._status.text_line_1),
+            text_line_2=merged_raw.get("text_line_2", self._status.text_line_2),
+            area=merged_raw.get("area", self._status.area),
+            cursor_row=merged_raw.get("cursor_row", self._status.cursor_row),
+            cursor_column=merged_raw.get("cursor_column", self._status.cursor_column),
+            raw=merged_raw,
+        )
+        new_status.arm_status = _derive_arm_status(
+            new_status.text_line_1,
+            new_status.text_line_2,
+            new_status.armed_led,
+            new_status.status_led,
+        )
+        self._status = new_status
+        if not self._first_status_event.is_set():
+            self._first_status_event.set()
+        for listener in list(self._listeners):
+            try:
+                listener(new_status)
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("Napco listener raised")
