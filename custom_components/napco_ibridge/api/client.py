@@ -8,10 +8,10 @@ polling + button presses) and the UDP:30717 discovery broadcast.
 from __future__ import annotations
 
 import asyncio
-import contextlib
-import socket
 from collections.abc import Callable
+import contextlib
 from dataclasses import dataclass, field
+import socket
 from typing import Final
 
 from ..const import (
@@ -309,7 +309,8 @@ class NapcoIbridgeApiClient:
         try:
             async with asyncio.timeout(CONNECT_TIMEOUT_SEC):
                 self._reader, self._writer = await asyncio.open_connection(
-                    self._host, TCP_PORT,
+                    self._host,
+                    TCP_PORT,
                 )
         except (OSError, TimeoutError) as err:
             msg = f"Unable to reach Napco panel at {self._host}:{TCP_PORT}"
@@ -317,10 +318,12 @@ class NapcoIbridgeApiClient:
 
         self._first_status_event.clear()
         self._reader_task = asyncio.create_task(
-            self._read_loop(), name=f"napco-ibridge-reader-{self._host}",
+            self._read_loop(),
+            name=f"napco-ibridge-reader-{self._host}",
         )
         self._poller_task = asyncio.create_task(
-            self._poll_loop(), name=f"napco-ibridge-poller-{self._host}",
+            self._poll_loop(),
+            name=f"napco-ibridge-poller-{self._host}",
         )
 
         try:
@@ -355,7 +358,7 @@ class NapcoIbridgeApiClient:
             self._sequence = (self._sequence + 1) & 0xFF
             buffer = _button_buffer(key_codes, self._sequence)
             try:
-                assert self._writer is not None  # noqa: S101 — guarded by is_connected
+                assert self._writer is not None
                 self._writer.write(buffer)
                 await self._writer.drain()
             except OSError as err:
@@ -367,7 +370,7 @@ class NapcoIbridgeApiClient:
             while not self._closing and self.is_connected:
                 async with self._write_lock:
                     try:
-                        assert self._writer is not None  # noqa: S101
+                        assert self._writer is not None
                         self._writer.write(_status_buffer())
                         await self._writer.drain()
                     except OSError as err:
@@ -378,7 +381,7 @@ class NapcoIbridgeApiClient:
             raise
 
     async def _read_loop(self) -> None:
-        assert self._reader is not None  # noqa: S101
+        assert self._reader is not None
         try:
             while not self._closing:
                 try:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from custom_components.napco_ibridge.api.client import (
     BUTTONS,
     _append_checksum,
@@ -12,12 +10,7 @@ from custom_components.napco_ibridge.api.client import (
     _parse_frame,
     _status_buffer,
 )
-from custom_components.napco_ibridge.const import (
-    ARM_STATE_AWAY,
-    ARM_STATE_DISARM,
-    ARM_STATE_NOT_READY,
-    ARM_STATE_STAY,
-)
+from custom_components.napco_ibridge.const import ARM_STATE_AWAY, ARM_STATE_DISARM, ARM_STATE_NOT_READY, ARM_STATE_STAY
 
 
 def test_status_buffer_matches_reference() -> None:
@@ -48,31 +41,19 @@ def test_button_buffer_layout() -> None:
 
 
 def test_arm_status_disarmed() -> None:
-    assert (
-        _derive_arm_status("READY TO ARM", "", armed_led="Off", status_led="On")
-        == ARM_STATE_DISARM
-    )
+    assert _derive_arm_status("READY TO ARM", "", armed_led="Off", status_led="On") == ARM_STATE_DISARM
 
 
 def test_arm_status_away_armed() -> None:
-    assert (
-        _derive_arm_status("ARMED", "ALL SECURE", armed_led="On", status_led="Off")
-        == ARM_STATE_AWAY
-    )
+    assert _derive_arm_status("ARMED", "ALL SECURE", armed_led="On", status_led="Off") == ARM_STATE_AWAY
 
 
 def test_arm_status_stay_armed() -> None:
-    assert (
-        _derive_arm_status("ARMED STAY", "", armed_led="On", status_led="CadenceB")
-        == ARM_STATE_STAY
-    )
+    assert _derive_arm_status("ARMED STAY", "", armed_led="On", status_led="CadenceB") == ARM_STATE_STAY
 
 
 def test_arm_status_unknown_falls_back() -> None:
-    assert (
-        _derive_arm_status("", "", armed_led="Off", status_led="Off")
-        == ARM_STATE_NOT_READY
-    )
+    assert _derive_arm_status("", "", armed_led="Off", status_led="Off") == ARM_STATE_NOT_READY
 
 
 def test_parse_frame_ignores_non_gem_k1() -> None:

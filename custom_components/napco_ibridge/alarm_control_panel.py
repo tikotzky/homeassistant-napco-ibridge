@@ -24,7 +24,6 @@ from .const import (
     ARM_STATE_NOT_READY,
     ARM_STATE_STAY,
     CONF_CODE,
-    CONF_SAVE_CODE,
     PARALLEL_UPDATES as _PARALLEL_UPDATES,
 )
 from .coordinator import NapcoIbridgeDataUpdateCoordinator
@@ -51,7 +50,7 @@ _STATE_MAP = {
 
 
 async def async_setup_entry(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     entry: NapcoIbridgeConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
@@ -83,9 +82,7 @@ class NapcoAlarmPanel(NapcoIbridgeEntity, AlarmControlPanelEntity):
 
     @property
     def _saved_code(self) -> str | None:
-        if self._entry.data.get(CONF_SAVE_CODE):
-            return self._entry.data.get(CONF_CODE) or None
-        return None
+        return self._entry.data.get(CONF_CODE) or None
 
     @property
     def code_arm_required(self) -> bool:

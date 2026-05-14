@@ -18,7 +18,7 @@ TO_REDACT = {CONF_CODE}
 
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     entry: NapcoIbridgeConfigEntry,
 ) -> dict[str, Any]:
     coordinator = entry.runtime_data.coordinator

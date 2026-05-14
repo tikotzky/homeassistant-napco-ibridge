@@ -11,22 +11,20 @@
       },
       "details": {
         "title": "Panel details",
-        "description": "Enter the iBridge panel IP. Optionally save your user code so Home Assistant can arm and disarm without prompting.",
+        "description": "Enter the iBridge panel IP. Leave the user code blank to be prompted on each arm/disarm, or enter it here to skip prompts.",
         "data": {
           "host": "Panel IP address",
-          "save_code": "Save user code in Home Assistant",
-          "code": "User code"
+          "code": "User code (optional)"
         },
         "data_description": {
-          "save_code": "If disabled, Home Assistant will ask for the code each time you arm or disarm.",
-          "code": "Required only when 'Save user code' is enabled."
+          "code": "If left blank, Home Assistant will ask for the code each time you arm or disarm."
         }
       }
     },
     "error": {
       "cannot_connect": "Could not reach the panel at that address.",
       "no_discovery": "No panel responded to the discovery broadcast.",
-      "code_required": "A user code is required when 'Save user code' is enabled."
+      "invalid_code": "The user code must be numeric."
     },
     "abort": {
       "already_configured": "This panel is already configured."
@@ -36,19 +34,17 @@
     "step": {
       "init": {
         "title": "Napco iBridge options",
-        "description": "Toggle whether the user code is stored in Home Assistant.",
+        "description": "Optionally save your user code. Leave blank to be prompted on each arm/disarm.",
         "data": {
-          "save_code": "Save user code in Home Assistant",
-          "code": "User code"
+          "code": "User code (optional)"
         },
         "data_description": {
-          "save_code": "If disabled, Home Assistant will ask for the code each time you arm or disarm.",
-          "code": "Required only when 'Save user code' is enabled."
+          "code": "If left blank, Home Assistant will ask for the code each time you arm or disarm."
         }
       }
     },
     "error": {
-      "code_required": "A user code is required when 'Save user code' is enabled."
+      "invalid_code": "The user code must be numeric."
     }
   },
   "entity": {

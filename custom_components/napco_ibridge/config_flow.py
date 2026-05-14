@@ -5,38 +5,25 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.helpers.selector import (
-    BooleanSelector,
-    TextSelector,
-    TextSelectorConfig,
-    TextSelectorType,
-)
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 
-from .api import (
-    NapcoIbridgeApiClient,
-    NapcoIbridgeApiClientCommunicationError,
-    async_discover_panel,
-)
-from .const import CONF_CODE, CONF_HOST, CONF_SAVE_CODE, DOMAIN, LOGGER
+from .api import NapcoIbridgeApiClient, NapcoIbridgeApiClientCommunicationError, async_discover_panel
+from .const import CONF_CODE, CONF_HOST, DOMAIN, LOGGER
 
 DISCOVER_OPTION = "discover"
 MANUAL_OPTION = "manual"
 
 
-def _details_schema(
-    host_default: str = "",
-    code_default: str = "",
-    save_default: bool = False,
-) -> vol.Schema:
+def _details_schema(host_default: str = "", code_default: str = "") -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=host_default): TextSelector(
                 TextSelectorConfig(type=TextSelectorType.TEXT),
             ),
-            vol.Optional(CONF_SAVE_CODE, default=save_default): BooleanSelector(),
             vol.Optional(CONF_CODE, default=code_default): TextSelector(
                 TextSelectorConfig(type=TextSelectorType.PASSWORD),
             ),
@@ -109,10 +96,9 @@ class NapcoIbridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         host_default = self._discovered_host or ""
         if user_input is not None:
             host = user_input[CONF_HOST]
-            save_code = user_input.get(CONF_SAVE_CODE, False)
             code = (user_input.get(CONF_CODE) or "").strip()
-            if save_code and not code:
-                errors[CONF_CODE] = "code_required"
+            if code and not code.isdigit():
+                errors[CONF_CODE] = "invalid_code"
             else:
                 try:
                     await _async_probe(host)
@@ -123,8 +109,8 @@ class NapcoIbridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not errors:
                 await self.async_set_unique_id(host)
                 self._abort_if_unique_id_configured()
-                data: dict[str, Any] = {CONF_HOST: host, CONF_SAVE_CODE: save_code}
-                if save_code:
+                data: dict[str, Any] = {CONF_HOST: host}
+                if code:
                     data[CONF_CODE] = code
                 return self.async_create_entry(title=f"Napco iBridge ({host})", data=data)
 
@@ -135,44 +121,42 @@ class NapcoIbridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=_details_schema(
                 host_default=host_default,
                 code_default=(user_input or {}).get(CONF_CODE, ""),
-                save_default=(user_input or {}).get(CONF_SAVE_CODE, False),
             ),
             errors=errors,
         )
 
 
 class NapcoIbridgeOptionsFlow(OptionsFlow):
-    """Allow toggling the stored-code setting after setup."""
+    """Allow updating the stored user code after setup."""
 
     async def async_step_init(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
-            save_code = user_input.get(CONF_SAVE_CODE, False)
             code = (user_input.get(CONF_CODE) or "").strip()
-            if save_code and not code:
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=self._schema(),
-                    errors={CONF_CODE: "code_required"},
-                )
-            data = {**self.config_entry.data, CONF_SAVE_CODE: save_code}
-            if save_code:
-                data[CONF_CODE] = code
+            if code and not code.isdigit():
+                errors[CONF_CODE] = "invalid_code"
             else:
-                data.pop(CONF_CODE, None)
-            self.hass.config_entries.async_update_entry(self.config_entry, data=data)
-            return self.async_create_entry(title="", data={})
-        return self.async_show_form(step_id="init", data_schema=self._schema())
+                data = {**self.config_entry.data}
+                if code:
+                    data[CONF_CODE] = code
+                else:
+                    data.pop(CONF_CODE, None)
+                self.hass.config_entries.async_update_entry(self.config_entry, data=data)
+                return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self._schema(),
+            errors=errors,
+        )
 
     def _schema(self) -> vol.Schema:
         data = self.config_entry.data
         return vol.Schema(
             {
-                vol.Optional(
-                    CONF_SAVE_CODE, default=data.get(CONF_SAVE_CODE, False),
-                ): BooleanSelector(),
                 vol.Optional(CONF_CODE, default=data.get(CONF_CODE, "")): TextSelector(
                     TextSelectorConfig(type=TextSelectorType.PASSWORD),
                 ),
