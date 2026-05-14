@@ -1,0 +1,14 @@
+{
+  // Lint rules live in .markdownlint.json (shared with the markdownlint v1 CLI
+  // and editor extensions). This file just configures markdownlint-cli2 itself,
+  // primarily to skip CHANGELOG.md which is owned by release-please.
+  "config": {
+    "extends": ".markdownlint.json"
+  },
+  "ignores": [
+    "CHANGELOG.md",
+    "node_modules/**",
+    "config/**",
+    ".local/**"
+  ]
+}
