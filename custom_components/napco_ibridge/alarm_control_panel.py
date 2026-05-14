@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from homeassistant.components.alarm_control_panel import (
@@ -24,6 +25,7 @@ from .const import (
     ARM_STATE_NOT_READY,
     ARM_STATE_STAY,
     CONF_CODE,
+    LOGGER,
     PARALLEL_UPDATES as _PARALLEL_UPDATES,
 )
 from .coordinator import NapcoIbridgeDataUpdateCoordinator
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+    from .api import NapcoStatus
     from .data import NapcoIbridgeConfigEntry
 
 PARALLEL_UPDATES = _PARALLEL_UPDATES
@@ -47,6 +50,21 @@ _STATE_MAP = {
     ARM_STATE_ARMING_NIGHT: AlarmControlPanelState.ARMING,
     ARM_STATE_NOT_READY: AlarmControlPanelState.DISARMED,
 }
+
+# States that need to be cleared with a disarm before another arm command takes
+# effect on the panel.
+_ARMED_OR_ARMING = {
+    ARM_STATE_STAY,
+    ARM_STATE_AWAY,
+    ARM_STATE_NIGHT,
+    ARM_STATE_ARMING_STAY,
+    ARM_STATE_ARMING_AWAY,
+    ARM_STATE_ARMING_NIGHT,
+}
+
+# How long to wait for the panel to report DISARM after we send the disarm
+# sequence. Status polling is 1 s, and disarm is usually instantaneous.
+_DISARM_WAIT_SEC = 4.0
 
 
 async def async_setup_entry(
@@ -129,19 +147,56 @@ class NapcoAlarmPanel(NapcoIbridgeEntity, AlarmControlPanelEntity):
             )
         return code
 
-    async def async_alarm_disarm(self, code: str | None = None) -> None:
-        digits = self._resolve_code(code)
-        sequence = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in digits]
+    async def _send_disarm(self, code: str) -> None:
+        sequence = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in code]
         sequence.append(BUTTONS["ButtonOnOffEnter"])
         await self.coordinator.client.async_send_keys(sequence)
 
-    async def async_alarm_arm_away(self, _code: str | None = None) -> None:
+    async def _wait_for_disarm(self, timeout: float = _DISARM_WAIT_SEC) -> None:
+        """Wait for the next coordinator update that reports DISARM."""
+        if self.coordinator.data and self.coordinator.data.arm_status == ARM_STATE_DISARM:
+            return
+        event = asyncio.Event()
+
+        def _on_push(status: NapcoStatus) -> None:
+            if status.arm_status == ARM_STATE_DISARM:
+                event.set()
+
+        remove = self.coordinator.client.add_listener(_on_push)
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+        except TimeoutError:
+            LOGGER.warning(
+                "Timed out waiting for panel to disarm before re-arming; the new arm command may not take effect",
+            )
+        finally:
+            remove()
+
+    async def _disarm_first_if_needed(self, code: str | None) -> None:
+        status = self.coordinator.data
+        if status is None or status.arm_status not in _ARMED_OR_ARMING:
+            return
+        # The panel won't accept a new arm-mode command while already armed
+        # (or arming). Disarm with the user code, wait for the state change,
+        # then proceed with the new arm sequence.
+        digits = self._resolve_code(code)
+        await self._send_disarm(digits)
+        await self._wait_for_disarm()
+
+    async def async_alarm_disarm(self, code: str | None = None) -> None:
+        digits = self._resolve_code(code)
+        await self._send_disarm(digits)
+
+    async def async_alarm_arm_away(self, code: str | None = None) -> None:
+        await self._disarm_first_if_needed(code)
         await self.coordinator.client.async_send_keys([BUTTONS["ButtonInstantAwayLong"]])
 
-    async def async_alarm_arm_home(self, _code: str | None = None) -> None:
+    async def async_alarm_arm_home(self, code: str | None = None) -> None:
+        await self._disarm_first_if_needed(code)
         await self.coordinator.client.async_send_keys([BUTTONS["ButtonInteriorStayLong"]])
 
-    async def async_alarm_arm_night(self, _code: str | None = None) -> None:
+    async def async_alarm_arm_night(self, code: str | None = None) -> None:
+        await self._disarm_first_if_needed(code)
         # Two long-presses of Interior Stay.
         await self.coordinator.client.async_send_keys(
             [BUTTONS["ButtonInteriorStayLong"], BUTTONS["ButtonInteriorStayLong"]],
