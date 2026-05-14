@@ -24,28 +24,28 @@ Home Assistant integration for Napco GEM-series alarm panels that expose an **iB
 
 This integration creates **one device per panel** and the following entities:
 
-| Platform | Entity | Purpose |
-|---|---|---|
-| `alarm_control_panel` | Panel | Primary control. Maps the iBridge arm-state to `disarmed` / `armed_home` / `armed_away` / `armed_night` / `arming`. |
-| `sensor` | Display | The two-line keypad display, combined into one string. |
-| `sensor` | Arm state | Raw enum (`disarm`, `stay`, `away`, `night`, `arming_*`, `not_ready`). Useful for automations that need finer state than HA's alarm panel. |
-| `binary_sensor` | Trouble | `device_class: problem` — on when the panel's Trouble LED is anything but Off. |
-| `binary_sensor` | Fire | `device_class: smoke` — on when the Fire LED is lit. |
-| `binary_sensor` | Fire trouble | `device_class: problem` — on when the Fire Trouble LED is lit. |
-| `binary_sensor` | Bypass active | On when one or more zones are bypassed. |
-| `binary_sensor` | Sounder | `device_class: sound` — on while the panel is making noise. |
-| `button` | Panic — Fire / Ambulance / Police | Sends the corresponding panic key. |
+| Platform              | Entity                            | Purpose                                                                                                                                    |
+| --------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `alarm_control_panel` | Panel                             | Primary control. Maps the iBridge arm-state to `disarmed` / `armed_home` / `armed_away` / `armed_night` / `arming`.                        |
+| `sensor`              | Display                           | The two-line keypad display, combined into one string.                                                                                     |
+| `sensor`              | Arm state                         | Raw enum (`disarm`, `stay`, `away`, `night`, `arming_*`, `not_ready`). Useful for automations that need finer state than HA's alarm panel. |
+| `binary_sensor`       | Trouble                           | `device_class: problem` — on when the panel's Trouble LED is anything but Off.                                                             |
+| `binary_sensor`       | Fire                              | `device_class: smoke` — on when the Fire LED is lit.                                                                                       |
+| `binary_sensor`       | Fire trouble                      | `device_class: problem` — on when the Fire Trouble LED is lit.                                                                             |
+| `binary_sensor`       | Bypass active                     | On when one or more zones are bypassed.                                                                                                    |
+| `binary_sensor`       | Sounder                           | `device_class: sound` — on while the panel is making noise.                                                                                |
+| `button`              | Panic — Fire / Ambulance / Police | Sends the corresponding panic key.                                                                                                         |
 
 ## Arm sequence mapping
 
 The integration speaks the same wire-protocol as the keypad, so arm actions are simply long-press keystrokes:
 
-| Action | Sent to panel |
-|---|---|
-| Arm Away | long-press `ButtonInstantAway` (no code) |
-| Arm Home | long-press `ButtonInteriorStay` (no code) |
+| Action    | Sent to panel                                   |
+| --------- | ----------------------------------------------- |
+| Arm Away  | long-press `ButtonInstantAway` (no code)        |
+| Arm Home  | long-press `ButtonInteriorStay` (no code)       |
 | Arm Night | long-press `ButtonInteriorStay` twice (no code) |
-| Disarm | user-code digits + `ButtonOnOffEnter` |
+| Disarm    | user-code digits + `ButtonOnOffEnter`           |
 
 ## Services
 
