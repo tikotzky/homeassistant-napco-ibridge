@@ -1,30 +1,67 @@
 # yaml-language-server: $schema=../../schemas/yaml/services_schema.yaml
-# Describes the format for available services for napco_ibridge
+# Service actions exposed by the Napco iBridge integration.
 
-example_action:
-  name: Example Action
-  description: Execute an example action (dummy service for demonstration)
+send_keys:
+  name: Send keys
+  description: Send a sequence of keypad button presses to a configured Napco panel.
   fields:
-    action_type:
-      name: Action Type
-      description: The type of action to perform
+    config_entry:
+      name: Panel
+      description: Config entry ID of the target panel (only needed when multiple are configured).
       required: false
-      default: default
-      example: "update"
+      selector:
+        config_entry:
+          integration: napco_ibridge
+    keys:
+      name: Keys
+      description: >-
+        Ordered list of keypad buttons. Choose from the named buttons in the UI,
+        or pass integer codes in YAML automations.
+      required: true
+      example: '["Button1", "Button2", "Button3", "Button4", "ButtonOnOffEnter"]'
       selector:
         select:
+          multiple: true
+          custom_value: true
           options:
-            - "default"
-            - "update"
-            - "reset"
-    target_value:
-      name: Target Value
-      description: The target value for the action
-      required: false
-      example: "new_value"
-      selector:
-        text:
-
-reload_data:
-  name: Reload Data
-  description: Force a refresh of the integration data from the API
+            - "Button0"
+            - "Button1"
+            - "Button2"
+            - "Button3"
+            - "Button4"
+            - "Button5"
+            - "Button6"
+            - "Button7"
+            - "Button8"
+            - "Button9"
+            - "ButtonStar"
+            - "ButtonBreak"
+            - "ButtonStartBreak"
+            - "ButtonShift0"
+            - "ButtonShift1"
+            - "ButtonShift2"
+            - "ButtonShift3"
+            - "ButtonShift4"
+            - "ButtonShift5"
+            - "ButtonShift6"
+            - "ButtonShift7"
+            - "ButtonShift8"
+            - "ButtonShift9"
+            - "ButtonOnOffEnter"
+            - "ButtonOnOffEnter2"
+            - "ButtonReset"
+            - "ButtonNext"
+            - "ButtonYes"
+            - "ButtonInteriorStay"
+            - "ButtonInteriorStayLong"
+            - "ButtonPrev"
+            - "ButtonNo"
+            - "ButtonInstantAway"
+            - "ButtonInstantAwayLong"
+            - "ButtonBypass"
+            - "ButtonF"
+            - "ButtonA"
+            - "ButtonP"
+            - "ButtonFunctionMenu"
+            - "ButtonZoneDirectory"
+            - "ButtonLongPrefix"
