@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/tikotzky/homeassistant-napco-ibridge/compare/v0.1.1...v0.1.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* **arm:** disarm first when switching between arm modes ([e3ff245](https://github.com/tikotzky/homeassistant-napco-ibridge/commit/e3ff2459b720eff40962d0defa78abaeaa0f78e9))
+
 ## [0.1.1](https://github.com/tikotzky/homeassistant-napco-ibridge/compare/v0.1.0...v0.1.1) (2026-05-14)
 
 
