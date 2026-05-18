@@ -2,10 +2,7 @@
 config/
 !config/configuration.yaml
 custom_components/
-!custom_components/napco_ibridge/
+!custom_components/ha_integration_domain/
 
 # Ignore-style files (no recognized extension — Prettier would misparse them)
 *ignore
-
-# Owned by release-please; Prettier would fight its formatting on every release.
-CHANGELOG.md
