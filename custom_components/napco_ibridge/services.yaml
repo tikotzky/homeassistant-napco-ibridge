@@ -40,6 +40,18 @@ send_code:
               label: "Interior / Stay (short)"
             - value: "ButtonInstantAway"
               label: "Instant Away (short)"
+            - value: "ButtonReset"
+              label: "Reset (silence / acknowledge)"
+    reset_first:
+      name: Reset first
+      description: >-
+        Send the user code followed by Reset before the action. Use this to
+        silence/acknowledge an alarm or clear the trouble display so the
+        action starts from a clean keypad.
+      required: false
+      default: false
+      selector:
+        boolean:
 
 send_keys:
   name: Send keys
