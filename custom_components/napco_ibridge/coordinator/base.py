@@ -39,9 +39,21 @@ class NapcoIbridgeDataUpdateCoordinator(DataUpdateCoordinator[NapcoStatus]):
         )
         self.client = client
         self._remove_listener = client.add_listener(self._handle_push)
+        self._remove_connection_listener = client.add_connection_listener(
+            self._handle_connection_change,
+        )
 
     def _handle_push(self, status: NapcoStatus) -> None:
         self.async_set_updated_data(status)
+
+    def _handle_connection_change(self, connected: bool) -> None:
+        """Mark entities unavailable while the panel link is down."""
+        if connected:
+            # Re-seed state explicitly: push callbacks only fire on changes, and
+            # the panel state may be identical to before the reconnect.
+            self.async_set_updated_data(self.client.status)
+        else:
+            self.async_set_update_error(UpdateFailed("Connection to Napco panel lost"))
 
     async def _async_setup(self) -> None:
         try:
@@ -58,5 +70,6 @@ class NapcoIbridgeDataUpdateCoordinator(DataUpdateCoordinator[NapcoStatus]):
 
     async def async_shutdown(self) -> None:
         self._remove_listener()
+        self._remove_connection_listener()
         await self.client.async_disconnect()
         await super().async_shutdown()

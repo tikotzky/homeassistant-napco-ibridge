@@ -23,6 +23,13 @@ CONNECT_TIMEOUT_SEC: Final = 5.0
 STATUS_POLL_INTERVAL_SEC: Final = 1.0
 FIRST_STATUS_TIMEOUT_SEC: Final = 5.0
 
+# Connection supervision. The panel answers each 1 s status poll, so a silent
+# link for STALE_CONNECTION_TIMEOUT_SEC means the connection is dead (covers
+# half-open sockets that never raise an error).
+STALE_CONNECTION_TIMEOUT_SEC: Final = 10.0
+RECONNECT_INITIAL_DELAY_SEC: Final = 1.0
+RECONNECT_MAX_DELAY_SEC: Final = 60.0
+
 # Config entry keys
 CONF_HOST: Final = "host"
 CONF_CODE: Final = "code"

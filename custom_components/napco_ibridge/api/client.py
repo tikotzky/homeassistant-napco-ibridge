@@ -12,6 +12,7 @@ from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass, field
 import socket
+import time
 from typing import Final
 
 from custom_components.napco_ibridge.const import (
@@ -30,6 +31,9 @@ from custom_components.napco_ibridge.const import (
     DISCOVERY_TIMEOUT_SEC,
     FIRST_STATUS_TIMEOUT_SEC,
     LOGGER,
+    RECONNECT_INITIAL_DELAY_SEC,
+    RECONNECT_MAX_DELAY_SEC,
+    STALE_CONNECTION_TIMEOUT_SEC,
     STATUS_POLL_INTERVAL_SEC,
     TCP_PORT,
 )
@@ -274,11 +278,15 @@ class NapcoIbridgeApiClient:
         self._sequence = 0
         self._status = NapcoStatus()
         self._listeners: list[Callable[[NapcoStatus], None]] = []
+        self._connection_listeners: list[Callable[[bool], None]] = []
         self._reader_task: asyncio.Task[None] | None = None
         self._poller_task: asyncio.Task[None] | None = None
+        self._watchdog_task: asyncio.Task[None] | None = None
+        self._reconnect_task: asyncio.Task[None] | None = None
         self._first_status_event = asyncio.Event()
         self._write_lock = asyncio.Lock()
         self._closing = False
+        self._last_rx_monotonic = 0.0
 
     @property
     def host(self) -> str:
@@ -301,6 +309,23 @@ class NapcoIbridgeApiClient:
 
         return _remove
 
+    def add_connection_listener(self, callback: Callable[[bool], None]) -> Callable[[], None]:
+        """Subscribe to connection state changes (True=connected, False=lost)."""
+        self._connection_listeners.append(callback)
+
+        def _remove() -> None:
+            with contextlib.suppress(ValueError):
+                self._connection_listeners.remove(callback)
+
+        return _remove
+
+    def _notify_connection(self, *, connected: bool) -> None:
+        for listener in list(self._connection_listeners):
+            try:
+                listener(connected)
+            except Exception:  # noqa: BLE001
+                LOGGER.exception("Napco connection listener raised")
+
     async def async_connect(self) -> None:
         """Open the TCP connection and wait for the first status frame."""
         if self.is_connected:
@@ -317,6 +342,7 @@ class NapcoIbridgeApiClient:
             raise NapcoIbridgeApiClientCommunicationError(msg) from err
 
         self._first_status_event.clear()
+        self._last_rx_monotonic = time.monotonic()
         self._reader_task = asyncio.create_task(
             self._read_loop(),
             name=f"napco-ibridge-reader-{self._host}",
@@ -325,24 +351,38 @@ class NapcoIbridgeApiClient:
             self._poll_loop(),
             name=f"napco-ibridge-poller-{self._host}",
         )
+        self._watchdog_task = asyncio.create_task(
+            self._watchdog_loop(),
+            name=f"napco-ibridge-watchdog-{self._host}",
+        )
 
         try:
             async with asyncio.timeout(FIRST_STATUS_TIMEOUT_SEC):
                 await self._first_status_event.wait()
         except TimeoutError as err:
-            await self.async_disconnect()
+            await self._async_teardown_connection()
             msg = "Connected but never received a status frame from the panel"
             raise NapcoIbridgeApiClientCommunicationError(msg) from err
 
     async def async_disconnect(self) -> None:
         self._closing = True
-        for task in (self._poller_task, self._reader_task):
-            if task and not task.done():
+        if self._reconnect_task and not self._reconnect_task.done():
+            self._reconnect_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._reconnect_task
+        self._reconnect_task = None
+        await self._async_teardown_connection()
+
+    async def _async_teardown_connection(self) -> None:
+        """Cancel connection tasks and close the socket; reconnect state is untouched."""
+        for task in (self._poller_task, self._reader_task, self._watchdog_task):
+            if task and not task.done() and task is not asyncio.current_task():
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
         self._reader_task = None
         self._poller_task = None
+        self._watchdog_task = None
         if self._writer is not None:
             with contextlib.suppress(Exception):
                 self._writer.close()
@@ -379,6 +419,7 @@ class NapcoIbridgeApiClient:
                 await asyncio.sleep(STATUS_POLL_INTERVAL_SEC)
         except asyncio.CancelledError:
             raise
+        self._schedule_reconnect()
 
     async def _read_loop(self) -> None:
         assert self._reader is not None
@@ -392,12 +433,64 @@ class NapcoIbridgeApiClient:
                 if not chunk:
                     LOGGER.info("Napco panel %s closed connection", self._host)
                     break
+                self._last_rx_monotonic = time.monotonic()
                 delta = _parse_frame(chunk)
                 if delta is None:
                     continue
+                # Any parsed status frame counts as "first status", even if it
+                # matches the pre-reconnect state and produces no delta below.
+                self._first_status_event.set()
                 self._apply_delta(delta)
         except asyncio.CancelledError:
             raise
+        self._schedule_reconnect()
+
+    async def _watchdog_loop(self) -> None:
+        """Force a reconnect when the panel stops answering status polls."""
+        try:
+            while not self._closing:
+                await asyncio.sleep(STALE_CONNECTION_TIMEOUT_SEC / 2)
+                if time.monotonic() - self._last_rx_monotonic > STALE_CONNECTION_TIMEOUT_SEC:
+                    LOGGER.warning(
+                        "No data from Napco panel %s for over %.0f s; connection is stale",
+                        self._host,
+                        STALE_CONNECTION_TIMEOUT_SEC,
+                    )
+                    break
+        except asyncio.CancelledError:
+            raise
+        self._schedule_reconnect()
+
+    def _schedule_reconnect(self) -> None:
+        """Start background reconnection after the connection died (idempotent)."""
+        if self._closing or (self._reconnect_task and not self._reconnect_task.done()):
+            return
+        LOGGER.warning("Lost connection to Napco panel %s; reconnecting", self._host)
+        self._notify_connection(connected=False)
+        self._reconnect_task = asyncio.create_task(
+            self._reconnect_loop(),
+            name=f"napco-ibridge-reconnect-{self._host}",
+        )
+
+    async def _reconnect_loop(self) -> None:
+        await self._async_teardown_connection()
+        delay = RECONNECT_INITIAL_DELAY_SEC
+        while not self._closing:
+            try:
+                await self.async_connect()
+            except NapcoIbridgeApiClientError as err:
+                LOGGER.debug(
+                    "Reconnect to Napco panel %s failed (%s); retrying in %.0f s",
+                    self._host,
+                    err,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, RECONNECT_MAX_DELAY_SEC)
+                continue
+            LOGGER.info("Reconnected to Napco panel %s", self._host)
+            self._notify_connection(connected=True)
+            return
 
     def _apply_delta(self, delta: dict) -> None:
         merged_raw = {**self._status.raw, **delta}
@@ -427,8 +520,6 @@ class NapcoIbridgeApiClient:
             new_status.status_led,
         )
         self._status = new_status
-        if not self._first_status_event.is_set():
-            self._first_status_event.set()
         for listener in list(self._listeners):
             try:
                 listener(new_status)
