@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/tikotzky/homeassistant-napco-ibridge/compare/v0.1.3...v0.1.4) (2026-07-13)
+
+
+### Features
+
+* **service-actions:** add reset_first option to send_code ([#18](https://github.com/tikotzky/homeassistant-napco-ibridge/issues/18)) ([a51b22e](https://github.com/tikotzky/homeassistant-napco-ibridge/commit/a51b22e50192b26a35ca5421a589e8928bbedab4))
+
 ## [0.1.3](https://github.com/tikotzky/homeassistant-napco-ibridge/compare/v0.1.2...v0.1.3) (2026-07-13)
 
 
