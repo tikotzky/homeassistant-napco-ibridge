@@ -15,8 +15,9 @@ from custom_components.napco_ibridge.const import ARM_STATE_AWAY, ARM_STATE_DISA
 
 def test_status_buffer_matches_reference() -> None:
     # Reference bytes derived from the JS implementation (with sequence forced to 0x01).
+    # Payload sums to 0x010C, so the trailing checksum bytes are 0x01, 0x0C.
     assert _status_buffer() == bytes(
-        [0xB8, 0x00, 0x09, 0x00, 0x01, 0x49, 0x01, 0x01, 0x4B],
+        [0xB8, 0x00, 0x09, 0x00, 0x01, 0x49, 0x01, 0x01, 0x0C],
     )
 
 
