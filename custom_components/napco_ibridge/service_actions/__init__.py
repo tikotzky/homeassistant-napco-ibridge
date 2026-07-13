@@ -24,6 +24,7 @@ ATTR_CONFIG_ENTRY = "config_entry"
 ATTR_KEYS = "keys"
 ATTR_CODE = "code"
 ATTR_ACTION = "action"
+ATTR_RESET_FIRST = "reset_first"
 
 # Terminator buttons that make sense after a code.
 CODE_ACTION_BUTTONS: tuple[str, ...] = (
@@ -83,6 +84,7 @@ SEND_CODE_SCHEMA = vol.Schema(
         vol.Optional(ATTR_DEVICE_ID): cv.string,
         vol.Required(ATTR_CODE): _coerce_code,
         vol.Required(ATTR_ACTION): _coerce_action,
+        vol.Optional(ATTR_RESET_FIRST, default=False): cv.boolean,
     },
 )
 
@@ -132,8 +134,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         entry = _resolve_entry(hass, call)
         code: str = call.data[ATTR_CODE]
         action: str = call.data[ATTR_ACTION]
-        sequence = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in code]
-        sequence.append(BUTTONS[action])
+        digits = [BUTTONS[DIGIT_BUTTONS[int(d)]] for d in code]
+        sequence: list[int] = []
+        if call.data[ATTR_RESET_FIRST]:
+            # Code + Reset silences/acknowledges alarms and clears trouble
+            # displays, so the action that follows starts from a clean keypad.
+            sequence.extend([*digits, BUTTONS["ButtonReset"]])
+        sequence.extend([*digits, BUTTONS[action]])
         try:
             await entry.runtime_data.client.async_send_keys(sequence)
         except NapcoIbridgeApiClientCommunicationError as err:

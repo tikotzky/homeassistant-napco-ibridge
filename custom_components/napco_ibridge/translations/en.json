@@ -116,6 +116,10 @@
         "action": {
           "name": "Action",
           "description": "Which button to press after the digits."
+        },
+        "reset_first": {
+          "name": "Reset first",
+          "description": "Send the user code followed by Reset before the action (silences alarms and clears the trouble display)."
         }
       }
     },
