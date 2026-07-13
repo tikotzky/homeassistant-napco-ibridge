@@ -35,6 +35,7 @@ CODE_ACTION_BUTTONS: tuple[str, ...] = (
     "ButtonInstantAwayLong",
     "ButtonBypass",
     "ButtonFunctionMenu",
+    "ButtonReset",
 )
 
 

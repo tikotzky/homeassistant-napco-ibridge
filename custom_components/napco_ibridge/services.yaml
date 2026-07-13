@@ -40,6 +40,8 @@ send_code:
               label: "Interior / Stay (short)"
             - value: "ButtonInstantAway"
               label: "Instant Away (short)"
+            - value: "ButtonReset"
+              label: "Reset (silence / acknowledge)"
     reset_first:
       name: Reset first
       description: >-
