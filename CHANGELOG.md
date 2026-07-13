@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/tikotzky/homeassistant-napco-ibridge/compare/v0.1.2...v0.1.3) (2026-07-13)
+
+
+### Bug Fixes
+
+* **api:** auto-reconnect when the panel connection drops or goes stale ([2244f39](https://github.com/tikotzky/homeassistant-napco-ibridge/commit/2244f3967a989c4fa9f188464efeaa92a3da6deb))
+
 ## [0.1.2](https://github.com/tikotzky/homeassistant-napco-ibridge/compare/v0.1.1...v0.1.2) (2026-05-14)
 
 
